@@ -3,9 +3,9 @@ include(vcpkg_common_functions)
 
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH 
-    REPO Camelron/opencv-c-wrapper
+    REPO ms-iot/ros_msft_mrtk_native
     REF master
-    SHA512 f141b1c686bedc2df8de9dabae3e49c25f829cd47661d86db3af04f48e9aa7401e10ea7ad42e5413e810a3e7065a59607a0f5f41c8e656e18d88aa2849fd9faf
+    SHA512 d3d2849b39ce3c9f430ffc71a7f1d9ad3330d7fdffe6699416d6455eac3a04af8a2f18a30e089d00924cec7aa2c140dc26a30436ce72a100d419179ce50f361d
     HEAD_REF master
 )
 
@@ -23,12 +23,12 @@ vcpkg_install_cmake()
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/share")
 
-configure_file("${SOURCE_PATH}/LICENSE.md" "${CURRENT_PACKAGES_DIR}/share/opencv-c-wrapper/copyright" COPYONLY)
+configure_file("${SOURCE_PATH}/LICENSE.md" "${CURRENT_PACKAGES_DIR}/share/ros-msft-mrtk-native/copyright" COPYONLY)
 
 file(GLOB HEADER_FILES LIST_DIRECTORIES false "${SOURCE_PATH}/*.h")
 
 file(INSTALL
     ${HEADER_FILES}
-    DESTINATION ${CURRENT_PACKAGES_DIR}/include/opencv-c-wrapper
+    DESTINATION ${CURRENT_PACKAGES_DIR}/include/ros-msft-mrtk-native
 )
 vcpkg_copy_pdbs()

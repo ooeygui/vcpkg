@@ -1,5 +1,0 @@
-Source: opencv-c-wrapper
-Version: 0.0.1
-Homepage: https://github.com/Camelron/opencv-c-wrapper
-Description: C wrapper for doing camera calibration in opencv
-Build-Depends: opencv4
