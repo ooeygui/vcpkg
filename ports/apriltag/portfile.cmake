@@ -14,8 +14,6 @@ set(VCPKG_C_FLAGS "${VCPKG_C_FLAGS} /wd4244 /wd4005 /wd4018 /wd4267 -D_CRT_SECUR
 set(VCPKG_CXX_FLAGS "${VCPKG_CXX_FLAGS} /wd4244 /wd4005 /wd4018 /wd4267 -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE")
 
 if (VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore") # UWP:
-message ("**** ${SOURCE_PATH}/common/time_util.h")
-
 vcpkg_replace_string(${SOURCE_PATH}/common/time_util.h
     "inline int gettimeofday(struct timeval* tp, void* tzp)" 
     "typedef struct timeval { long tv_sec; long tv_usec; } TIMEVAL;\r\n inline int gettimeofday(struct timeval* tp, void* tzp)"
@@ -29,7 +27,7 @@ vcpkg_configure_cmake(
         -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE
 )
 
-vcpkg_install_cmake()
+vcpkg_fixup_cmake_targets()
 
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/share")
 
@@ -42,7 +40,7 @@ file(INSTALL
 )
 vcpkg_copy_pdbs()
 
-if (VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore") # UWP:
+if (VCPKG_TARGET_IS_UWP AND TRIPLET_SYSTEM_ARCH STREQUAL "arm64") # UWP:
 vcpkg_copy_tools(
     TOOL_NAMES 
         apriltag_demo
