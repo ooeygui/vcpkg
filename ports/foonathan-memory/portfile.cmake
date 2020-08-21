@@ -22,8 +22,30 @@ vcpkg_from_github(
 
 file(COPY ${COMP_SOURCE_PATH}/comp_base.cmake DESTINATION ${SOURCE_PATH}/cmake/comp)
 
+if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+    # No tools on WindowsStore
+    set(FOONATHAN_MEMORY_BUILD_TOOLS OFF)
+	message("*** No tools for Windows store")
+else()
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     tool FOONATHAN_MEMORY_BUILD_TOOLS
+)
+endif()
+
+
+
+# Affects the UWP build consistency
+vcpkg_replace_string(
+    ${SOURCE_PATH}/tool/CMakeLists.txt
+    "foonathan_memory_node_size_debugger"
+    "nodesize_dbg"
+)
+
+# Affects the UWP build consistency
+vcpkg_replace_string(
+    ${SOURCE_PATH}/src/CMakeLists.txt
+    "foonathan_memory_node_size_debugger"
+    "nodesize_dbg"
 )
 
 vcpkg_configure_cmake(
@@ -71,6 +93,7 @@ vcpkg_replace_string(
     "\${_IMPORT_PREFIX}/include/foonathan_memory/comp;\${_IMPORT_PREFIX}/include/foonathan_memory"
     "\${_IMPORT_PREFIX}/include"
 )
+
 # Place header files into the right folders - Done!
 
 # The Debug version of this lib is built with:
