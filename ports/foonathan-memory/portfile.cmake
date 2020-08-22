@@ -24,8 +24,7 @@ file(COPY ${COMP_SOURCE_PATH}/comp_base.cmake DESTINATION ${SOURCE_PATH}/cmake/c
 
 if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
     # No tools on WindowsStore
-    set(FOONATHAN_MEMORY_BUILD_TOOLS OFF)
-	message("*** No tools for Windows store")
+    set(FEATURE_OPTIONS -DFOONATHAN_MEMORY_BUILD_TOOLS=OFF)
 else()
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     tool FOONATHAN_MEMORY_BUILD_TOOLS
