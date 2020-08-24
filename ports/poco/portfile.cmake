@@ -23,8 +23,29 @@ vcpkg_from_github(
 string(COMPARE EQUAL "${VCPKG_LIBRARY_LINKAGE}" "static" POCO_STATIC)
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "static" POCO_MT)
 
+if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+    set(VCPKG_C_FLAGS "-D_WINUWP -O2 ${VCPKG_C_FLAGS}")
+    set(VCPKG_CXX_FLAGS "-D_WINUWP -O2 ${VCPKG_CXX_FLAGS}")
+endif()
+
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     pdf ENABLE_PDF
+    netssl ENABLE_NETSSL
+    net ENABLE_NET
+    crypto ENABLE_CRYPTO
+    data ENABLE_DATA
+    json ENABLE_JSON
+    mongodb ENABLE_MONGODB
+    redis ENABLE_REDIS
+    pagecompiler ENABLE_PAGECOMPILER
+    pagecompilerfile2page ENABLE_PAGECOMPILER_FILE2PAGE
+    util ENABLE_UTIL
+    zip ENABLE_7ZIP
+    sevenzip ENABLE_ZIP
+    encodings ENABLE_ENCODINGS
+    encodingscompiler ENABLE_ENCODINGSCOMPLIER
+    doc ENABLE_POCODOC
+    cppparser ENABLE_CPPPARSER
 )
 
 # MySQL / MariaDDB feature
@@ -59,21 +80,6 @@ vcpkg_configure_cmake(
         # Allow enabling and disabling components
         # POCO_ENABLE_SQL_ODBC, POCO_ENABLE_SQL_MYSQL and POCO_ENABLE_SQL_POSTGRESQL are
         # defined on the fly if the required librairies are present
-        -DENABLE_ENCODINGS=ON
-        -DENABLE_ENCODINGS_COMPILER=ON
-        -DENABLE_XML=ON
-        -DENABLE_JSON=ON
-        -DENABLE_MONGODB=ON
-        # -DPOCO_ENABLE_SQL_SQLITE=ON # SQLITE are not supported.
-        -DENABLE_REDIS=ON
-        -DENABLE_UTIL=ON
-        -DENABLE_NET=ON
-        -DENABLE_SEVENZIP=ON
-        -DENABLE_ZIP=ON
-        -DENABLE_CPPPARSER=ON
-        -DENABLE_POCODOC=ON
-        -DENABLE_PAGECOMPILER=ON
-        -DENABLE_PAGECOMPILER_FILE2PAGE=ON
         #
         -DMYSQL_INCLUDE_DIR=${MYSQL_INCLUDE_DIR}
     OPTIONS_RELEASE
@@ -81,6 +87,15 @@ vcpkg_configure_cmake(
     OPTIONS_DEBUG
         -DMYSQL_LIB=${MYSQL_LIBRARY_DEBUG}
 )
+
+if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+# Affects the UWP build consistency
+vcpkg_replace_string(
+    ${SOURCE_PATH}/Foundation/CMakeLists.txt
+    "WINCE"
+    "CMAKE_SYSTEM_NAME STREQUAL \"WindowsStore\""
+)
+endif()
 
 vcpkg_install_cmake()
 
@@ -111,7 +126,7 @@ if(EXISTS "${CURRENT_PACKAGES_DIR}/bin/cpspc.exe")
     file(RENAME ${CURRENT_PACKAGES_DIR}/bin/f2cpsp.exe ${CURRENT_PACKAGES_DIR}/tools/f2cpsp.exe)
     file(RENAME ${CURRENT_PACKAGES_DIR}/bin/PocoDoc.exe ${CURRENT_PACKAGES_DIR}/tools/PocoDoc.exe)
     file(RENAME ${CURRENT_PACKAGES_DIR}/bin/tec.exe ${CURRENT_PACKAGES_DIR}/tools/tec.exe)
-else()
+elseif(EXISTS "${CURRENT_PACKAGES_DIR}/bin/cpspc")
     file(RENAME ${CURRENT_PACKAGES_DIR}/bin/cpspc ${CURRENT_PACKAGES_DIR}/tools/cpspc)
     file(RENAME ${CURRENT_PACKAGES_DIR}/bin/f2cpsp ${CURRENT_PACKAGES_DIR}/tools/f2cpsp)
     file(RENAME ${CURRENT_PACKAGES_DIR}/bin/PocoDoc ${CURRENT_PACKAGES_DIR}/tools/PocoDoc)
@@ -146,6 +161,12 @@ endif()
 
 # remove unused files
 file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)
+
+if(NOT EXISTS "${CURRENT_PACKAGES_DIR}/bin/cpspc.exe" AND
+   NOT EXISTS "${CURRENT_PACKAGES_DIR}/bin/cpspc")
+file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/tools)
+endif()
+
 
 # copy license
 file(INSTALL ${SOURCE_PATH}/LICENSE DESTINATION ${CURRENT_PACKAGES_DIR}/share/${PORT} RENAME copyright)

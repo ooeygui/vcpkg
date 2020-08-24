@@ -1,0 +1,268 @@
+diff --git a/Foundation/include/Poco/Platform.h b/Foundation/include/Poco/Platform.h
+index 0d5ebdf..824dc60 100644
+--- a/Foundation/include/Poco/Platform.h
++++ b/Foundation/include/Poco/Platform.h
+@@ -42,6 +42,7 @@
+ #define POCO_OS_UNKNOWN_UNIX  0x00ff
+ #define POCO_OS_WINDOWS_NT    0x1001
+ #define POCO_OS_WINDOWS_CE    0x1011
++#define POCO_OS_WINDOWS_UWP   0x1012
+ #define POCO_OS_VMS           0x2001
+ 
+ 
+@@ -101,6 +102,9 @@
+ #elif defined(_WIN32_WCE)
+ 	#define POCO_OS_FAMILY_WINDOWS 1
+ 	#define POCO_OS POCO_OS_WINDOWS_CE
++#elif defined(_WINUWP)
++	#define POCO_OS_FAMILY_WINDOWS 1
++	#define POCO_OS POCO_OS_WINDOWS_UWP
+ #elif defined(_WIN32) || defined(_WIN64)
+ 	#define POCO_OS_FAMILY_WINDOWS 1
+ 	#define POCO_OS POCO_OS_WINDOWS_NT
+diff --git a/Foundation/src/DirectoryWatcher.cpp b/Foundation/src/DirectoryWatcher.cpp
+index 8c8dc46..ea87ce5 100644
+--- a/Foundation/src/DirectoryWatcher.cpp
++++ b/Foundation/src/DirectoryWatcher.cpp
+@@ -149,10 +149,10 @@ private:
+ 	DirectoryWatcher& _owner;
+ };
+ 
+-
+ #if POCO_OS == POCO_OS_WINDOWS_NT
+ 
+ 
++
+ class WindowsDirectoryWatcherStrategy: public DirectoryWatcherStrategy
+ {
+ public:
+diff --git a/Foundation/src/Environment_WIN32.cpp b/Foundation/src/Environment_WIN32.cpp
+index edcf6fe..7bd9d66 100644
+--- a/Foundation/src/Environment_WIN32.cpp
++++ b/Foundation/src/Environment_WIN32.cpp
+@@ -176,7 +176,7 @@ std::string EnvironmentImpl::nodeNameImpl()
+ void EnvironmentImpl::nodeIdImpl(NodeId& id)
+ {
+ 	std::memset(&id, 0, sizeof(id));
+-
++	#ifndef _WINUWP
+ 	PIP_ADAPTER_INFO pAdapterInfo;
+ 	PIP_ADAPTER_INFO pAdapter = 0;
+ 	ULONG len    = sizeof(IP_ADAPTER_INFO);
+@@ -208,6 +208,7 @@ void EnvironmentImpl::nodeIdImpl(NodeId& id)
+ 		}
+ 	}
+ 	delete [] reinterpret_cast<char*>(pAdapterInfo);
++	#endif
+ }
+ 
+ 
+diff --git a/Foundation/src/FileStream_WIN32.cpp b/Foundation/src/FileStream_WIN32.cpp
+index 28f53c9..75e88cd 100644
+--- a/Foundation/src/FileStream_WIN32.cpp
++++ b/Foundation/src/FileStream_WIN32.cpp
+@@ -63,13 +63,19 @@ void FileStreamBuf::open(const std::string& path, std::ios::openmode mode)
+ 		creationDisp = OPEN_ALWAYS;
+ 
+ 	DWORD flags = FILE_ATTRIBUTE_NORMAL;
+-	
++
++#ifdef _WINUWP
++	std::wstring utf16Path;
++	FileImpl::convertPath(path, utf16Path);
++	_handle = CreateFile2(utf16Path.c_str(), access, shareMode, creationDisp, NULL);
++#else
+ #if defined (POCO_WIN32_UTF8)
+ 	std::wstring utf16Path;
+ 	FileImpl::convertPath(path, utf16Path);
+ 	_handle = CreateFileW(utf16Path.c_str(), access, shareMode, NULL, creationDisp, flags, NULL);
+ #else
+ 	_handle = CreateFileA(path.c_str(), access, shareMode, NULL, creationDisp, flags, NULL);
++#endif
+ #endif
+ 
+ 	if (_handle == INVALID_HANDLE_VALUE)
+diff --git a/Foundation/src/File_WIN32U.cpp b/Foundation/src/File_WIN32U.cpp
+index f8609f1..33fa855 100644
+--- a/Foundation/src/File_WIN32U.cpp
++++ b/Foundation/src/File_WIN32U.cpp
+@@ -27,7 +27,12 @@ class FileHandle
+ public:
+ 	FileHandle(const std::string& path, const std::wstring& upath, DWORD access, DWORD share, DWORD disp)
+ 	{
++		#ifdef _WINUWP
++		_h = CreateFile2(upath.c_str(), access, share, disp, 0);
++		#else
+ 		_h = CreateFileW(upath.c_str(), access, share, 0, disp, 0, 0);
++		#endif
++
+ 		if (_h == INVALID_HANDLE_VALUE)
+ 		{
+ 			FileImpl::handleLastErrorImpl(path);
+@@ -322,8 +327,12 @@ void FileImpl::linkToImpl(const std::string& path, int type) const
+ 
+ 	if (type == 0)
+ 	{
++		#ifdef _WINUWP
++			throw Poco::NotImplementedException("Hard link support not available in used version of the Windows SDK");
++		#else
+ 		if (CreateHardLinkW(upath.c_str(), _upath.c_str(), NULL) == 0)
+ 			handleLastErrorImpl(_path);
++		#endif
+ 	}
+ 	else
+ 	{
+@@ -363,7 +372,11 @@ bool FileImpl::createFileImpl()
+ {
+ 	poco_assert (!_path.empty());
+ 
++	#ifdef _WINUWP
++	HANDLE hFile = CreateFile2(_upath.c_str(), GENERIC_WRITE, 0, CREATE_NEW, 0);
++	#else
+ 	HANDLE hFile = CreateFileW(_upath.c_str(), GENERIC_WRITE, 0, 0, CREATE_NEW, 0, 0);
++	#endif
+ 	if (hFile != INVALID_HANDLE_VALUE)
+ 	{
+ 		CloseHandle(hFile);
+diff --git a/Foundation/src/LogFile_WIN32U.cpp b/Foundation/src/LogFile_WIN32U.cpp
+index b89bf8e..6bf9712 100644
+--- a/Foundation/src/LogFile_WIN32U.cpp
++++ b/Foundation/src/LogFile_WIN32U.cpp
+@@ -90,7 +90,12 @@ void LogFileImpl::createFile()
+ 	std::wstring upath;
+ 	FileImpl::convertPath(_path, upath);
+ 	
++	#ifdef  _WINUWP
++	_hFile = CreateFile2(upath.c_str(), GENERIC_WRITE, FILE_SHARE_READ, OPEN_ALWAYS, NULL);
++	#else
+ 	_hFile = CreateFileW(upath.c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
++	#endif
++	
+ 	if (_hFile == INVALID_HANDLE_VALUE) throw OpenFileException(_path);
+ 	SetFilePointer(_hFile, 0, 0, FILE_END);
+ 	// There seems to be a strange "optimization" in the Windows NTFS
+diff --git a/Foundation/src/LoggingFactory.cpp b/Foundation/src/LoggingFactory.cpp
+index f3e067a..fdcd35d 100644
+--- a/Foundation/src/LoggingFactory.cpp
++++ b/Foundation/src/LoggingFactory.cpp
+@@ -84,6 +84,7 @@ LoggingFactory& LoggingFactory::defaultFactory()
+ void LoggingFactory::registerBuiltins()
+ {
+ 	_channelFactory.registerClass("AsyncChannel", new Instantiator<AsyncChannel, Channel>);
++#ifndef _WINUWP
+ #if defined(POCO_OS_FAMILY_WINDOWS) && !defined(_WIN32_WCE)
+ 	_channelFactory.registerClass("ConsoleChannel", new Instantiator<WindowsConsoleChannel, Channel>);
+ 	_channelFactory.registerClass("ColorConsoleChannel", new Instantiator<WindowsColorConsoleChannel, Channel>);
+@@ -91,6 +92,7 @@ void LoggingFactory::registerBuiltins()
+ 	_channelFactory.registerClass("ConsoleChannel", new Instantiator<ConsoleChannel, Channel>);
+ 	_channelFactory.registerClass("ColorConsoleChannel", new Instantiator<ColorConsoleChannel, Channel>);
+ #endif
++#endif
+ #ifndef POCO_NO_FILECHANNEL
+ 	_channelFactory.registerClass("FileChannel", new Instantiator<FileChannel, Channel>);
+ #endif
+@@ -106,7 +108,7 @@ void LoggingFactory::registerBuiltins()
+ 	_channelFactory.registerClass("SyslogChannel", new Instantiator<SyslogChannel, Channel>);
+ #endif
+ #endif
+-#if defined(POCO_OS_FAMILY_WINDOWS) && !defined(_WIN32_WCE)
++#if defined(POCO_OS_FAMILY_WINDOWS) && !defined(_WIN32_WCE) && !defined(_WINUWP)
+ 	_channelFactory.registerClass("EventLogChannel", new Instantiator<EventLogChannel, Channel>);
+ #endif
+ 
+diff --git a/Foundation/src/Path_WIN32U.cpp b/Foundation/src/Path_WIN32U.cpp
+index ac757d6..1112a8d 100644
+--- a/Foundation/src/Path_WIN32U.cpp
++++ b/Foundation/src/Path_WIN32U.cpp
+@@ -203,6 +203,7 @@ std::string PathImpl::expandImpl(const std::string& path)
+ void PathImpl::listRootsImpl(std::vector<std::string>& roots)
+ {
+ 	roots.clear();
++	#ifndef _WINUWP
+ 	wchar_t buffer[128];
+ 	DWORD n = GetLogicalDriveStringsW(sizeof(buffer)/sizeof(wchar_t) - 1, buffer);
+ 	wchar_t* it  = buffer;
+@@ -216,6 +217,7 @@ void PathImpl::listRootsImpl(std::vector<std::string>& roots)
+ 		roots.push_back(dev);
+ 		++it;
+ 	}
++	#endif
+ }
+ 
+ 
+diff --git a/Foundation/src/Process_WIN32U.cpp b/Foundation/src/Process_WIN32U.cpp
+index 2a81a8d..5af31d1 100644
+--- a/Foundation/src/Process_WIN32U.cpp
++++ b/Foundation/src/Process_WIN32U.cpp
+@@ -165,6 +165,7 @@ static std::string escapeArg(const std::string& arg)
+ 
+ ProcessHandleImpl* ProcessImpl::launchImpl(const std::string& command, const ArgsImpl& args, const std::string& initialDirectory, Pipe* inPipe, Pipe* outPipe, Pipe* errPipe, const EnvImpl& env)
+ {
++#ifndef _WINUWP
+ 	std::string commandLine = escapeArg(command);
+ 	for (ArgsImpl::const_iterator it = args.begin(); it != args.end(); ++it)
+ 	{
+@@ -286,7 +287,9 @@ ProcessHandleImpl* ProcessImpl::launchImpl(const std::string& command, const Arg
+ 		CloseHandle(processInfo.hThread);
+ 		return new ProcessHandleImpl(processInfo.hProcess, processInfo.dwProcessId);
+ 	} 
+-	else throw SystemException("Cannot launch process", command);
++	else
++#endif 
++		throw SystemException("Cannot launch process", command);
+ }
+ 
+ 
+diff --git a/Foundation/src/RandomStream.cpp b/Foundation/src/RandomStream.cpp
+index 7a490eb..2c19b8e 100644
+--- a/Foundation/src/RandomStream.cpp
++++ b/Foundation/src/RandomStream.cpp
+@@ -41,8 +41,9 @@ RandomBuf::~RandomBuf()
+ int RandomBuf::readFromDevice(char* buffer, std::streamsize length)
+ {
+ 	int n = 0;
+-
+-#if defined(POCO_OS_FAMILY_WINDOWS)
++#if defined(_WINUWP)
++	// nothing
++#elif defined(POCO_OS_FAMILY_WINDOWS)
+ 	HCRYPTPROV hProvider = 0;
+ 	CryptAcquireContext(&hProvider, 0, 0, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT);
+ 	CryptGenRandom(hProvider, (DWORD) length, (BYTE*) buffer);
+diff --git a/Foundation/src/SharedLibrary_WIN32U.cpp b/Foundation/src/SharedLibrary_WIN32U.cpp
+index 49127c4..50967ca 100644
+--- a/Foundation/src/SharedLibrary_WIN32U.cpp
++++ b/Foundation/src/SharedLibrary_WIN32U.cpp
+@@ -40,6 +40,12 @@ void SharedLibraryImpl::loadImpl(const std::string& path, int /*flags*/)
+ 	FastMutex::ScopedLock lock(_mutex);
+ 
+ 	if (_handle) throw LibraryAlreadyLoadedException(_path);
++
++#ifdef _WINUWP
++	std::wstring upath;
++	UnicodeConverter::toUTF16(path, upath);
++	_handle = LoadPackagedLibrary(upath.c_str(), 0);
++#else
+ 	DWORD flags(0);
+ #if !defined(_WIN32_WCE)
+ 	Path p(path);
+@@ -48,6 +54,7 @@ void SharedLibraryImpl::loadImpl(const std::string& path, int /*flags*/)
+ 	std::wstring upath;
+ 	UnicodeConverter::toUTF16(path, upath);
+ 	_handle = LoadLibraryExW(upath.c_str(), 0, flags);
++#endif
+ 	if (!_handle) throw LibraryLoadException(path);
+ 	_path = path;
+ }
+diff --git a/cmake/DefinePlatformSpecifc.cmake b/cmake/DefinePlatformSpecifc.cmake
+index b296405..58d92b6 100644
+--- a/cmake/DefinePlatformSpecifc.cmake
++++ b/cmake/DefinePlatformSpecifc.cmake
+@@ -130,3 +130,7 @@ endif(IOS)
+ if (ANDROID)
+   add_definitions( -DPOCO_NO_FPENVIRONMENT -DPOCO_NO_WSTRING -DPOCO_NO_SHAREDMEMORY )
+ endif(ANDROID)
++
++if (CMAKE_SYSTEM MATCHES "WindowsStore")
++  add_definitions( -DPOCO_NO_FPENVIRONMENT -D_WINUWP -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -DPOCO_NO_SHAREDMEMORY )
++endif(WINDOWS_STORE)
