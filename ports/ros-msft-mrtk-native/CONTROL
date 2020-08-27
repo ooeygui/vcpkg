@@ -1,0 +1,5 @@
+Source: ros-msft-mrtk-native
+Version: 0.0.1
+Homepage: https://github.com/ms-iot/ros_msft_mrtk_native
+Description: C wrappers for various dependencies of the ros_msft_mrtk project
+Build-Depends: opencv4
