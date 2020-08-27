@@ -17,6 +17,8 @@ vcpkg_from_github(
         arm64_pcre.patch
         fix_foundation_link.patch
         use-vcpkg-expat.patch
+        uwp.patch
+
 )
 
 # define Poco linkage type
