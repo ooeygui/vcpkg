@@ -2,4 +2,4 @@ Source: apriltag
 Version: 3.1.2
 Homepage: https://github.com/AprilRobotics/apriltag
 Description: AprilTag is a visual fiducial system
-Build-Depends: opencv4
+Build-Depends: opencv4[core]
