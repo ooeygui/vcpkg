@@ -29,7 +29,7 @@ vcpkg_configure_cmake(
         -DUSE_APRIL_TAGS_PYTHON_WRAPPER=NO
 )
 
-if (TRIPLET_SYSTEM_ARCH STREQUAL "arm64")
+if (TRIPLET_SYSTEM_ARCH STREQUAL "arm64" OR TRIPLET_SYSTEM_ARCH STREQUAL "arm")
 message("Patching ${SOURCE_PATH}/CMakeLists.txt")
 vcpkg_replace_string(${SOURCE_PATH}/CMakeLists.txt
     "set(CMAKE_BUILD_TYPE Release)" 
