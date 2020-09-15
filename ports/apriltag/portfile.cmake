@@ -8,6 +8,8 @@ vcpkg_from_github(
     REF master
     SHA512 9ed37a6e9b9d84324a3dcb0e7aca81d76e821d48b75c691845fa49a91a4c6134590078c8d3db03051ce04360bb0228ac46d3f34aafb6ac17ea3a738f411ba7d2
     HEAD_REF master
+    PATCHES
+      "arm-opt.patch"
 )
 
 set(VCPKG_C_FLAGS "${VCPKG_C_FLAGS} /wd4244 /wd4005 /wd4018 /wd4267 -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE")
