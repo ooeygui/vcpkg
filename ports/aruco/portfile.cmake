@@ -8,6 +8,8 @@ vcpkg_from_sourceforge(
 vcpkg_configure_cmake(
     SOURCE_PATH ${SOURCE_PATH}
     PREFER_NINJA
+    OPTIONS
+        -DARUCO_DSO_EXPORTS=NO
 )
 
 vcpkg_install_cmake()
