@@ -1,3 +1,5 @@
+include(vcpkg_common_functions)
+
 # WINDOWS_EXPORT_ALL_SYMBOLS doesn't work.
 # unresolved external symbol "public: static unsigned int const foonathan::memory::detail::memory_block_stack::implementation_offset
 vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
@@ -20,9 +22,57 @@ vcpkg_from_github(
 
 file(COPY ${COMP_SOURCE_PATH}/comp_base.cmake DESTINATION ${SOURCE_PATH}/cmake/comp)
 
-vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
-    tool FOONATHAN_MEMORY_BUILD_TOOLS
+if(CMAKE_HOST_WIN32 AND NOT VCPKG_TARGET_ARCHITECTURE MATCHES "x64" AND NOT VCPKG_TARGET_ARCHITECTURE MATCHES "x86")
+    set(foonathan_memory_BUILD_BINARIES OFF)
+elseif(CMAKE_HOST_WIN32 AND NOT VCPKG_TARGET_IS_MINGW AND NOT (VCPKG_TARGET_IS_WINDOWS AND NOT VCPKG_TARGET_IS_UWP))
+    set(foonathan_memory_BUILD_BINARIES OFF)
+else()
+    set(foonathan_memory_BUILD_BINARIES ON)
+endif()
+
+if(NOT foonathan_memory_BUILD_BINARIES AND NOT EXISTS ${CURRENT_INSTALLED_DIR}/../x86-windows/tools/foonathan-memory)
+    message(FATAL_ERROR "Cross-targetting requires the x86-windows to be available. Please run vcpkg install foonathan-memory:x86-windows first.")
+endif()
+
+if(NOT VCPKG_CMAKE_SYSTEM_NAME OR 
+   VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+    set(EXECUTABLE_SUFFIX ".exe")
+else()
+    set(EXECUTABLE_SUFFIX "")
+endif()
+
+if(foonathan_memory_BUILD_BINARIES)
+    vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
+        tool FOONATHAN_MEMORY_BUILD_TOOLS
+    )
+else()
+
+# Affects the UWP build consistency
+vcpkg_replace_string(
+    ${SOURCE_PATH}/src/CMakeLists.txt
+    "foonathan_memory_node_size_debugger --code"
+    "${CURRENT_INSTALLED_DIR}/../x86-windows/tools/${PORT}/nodesize_dbg${EXECUTABLE_SUFFIX} --code"
 )
+
+vcpkg_replace_string(
+    ${SOURCE_PATH}/tool/CMakeLists.txt
+    "set_target_properties(foonathan_memory_node_size_debugger PROPERTIES OUTPUT_NAME nodesize_dbg)"
+    ""
+)
+
+vcpkg_replace_string(
+    ${SOURCE_PATH}/tool/CMakeLists.txt
+    "install(TARGETS foonathan_memory_node_size_debugger EXPORT foonathan_memoryTargets"
+    ""
+)
+
+vcpkg_replace_string(
+    ${SOURCE_PATH}/tool/CMakeLists.txt
+    "RUNTIME DESTINATION \$\{FOONATHAN_MEMORY_RUNTIME_INSTALL_DIR\})"
+    ""
+)
+endif()
+
 
 vcpkg_configure_cmake(
     SOURCE_PATH ${SOURCE_PATH}
@@ -42,6 +92,7 @@ elseif(EXISTS ${CURRENT_PACKAGES_DIR}/share/foonathan_memory/cmake)
 endif()
 
 vcpkg_copy_pdbs()
+
 
 # Place header files into the right folders
 # The original layout is not a problem for CMake-based project.
@@ -69,6 +120,8 @@ vcpkg_replace_string(
     "\${_IMPORT_PREFIX}/include/foonathan_memory/comp;\${_IMPORT_PREFIX}/include/foonathan_memory"
     "\${_IMPORT_PREFIX}/include"
 )
+
+
 # Place header files into the right folders - Done!
 
 # The Debug version of this lib is built with:
@@ -94,14 +147,7 @@ file(REMOVE
     ${CURRENT_PACKAGES_DIR}/README.md
 )
 
-if(NOT VCPKG_CMAKE_SYSTEM_NAME OR 
-   VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
-    set(EXECUTABLE_SUFFIX ".exe")
-else()
-    set(EXECUTABLE_SUFFIX "")
-endif()
-
-if(EXISTS ${CURRENT_PACKAGES_DIR}/bin/nodesize_dbg${EXECUTABLE_SUFFIX})
+if(foonathan_memory_BUILD_BINARIES)
     file(COPY
         ${CURRENT_PACKAGES_DIR}/bin/nodesize_dbg${EXECUTABLE_SUFFIX}
         DESTINATION ${CURRENT_PACKAGES_DIR}/tools/${PORT}
@@ -119,7 +165,20 @@ if(EXISTS ${CURRENT_PACKAGES_DIR}/bin/nodesize_dbg${EXECUTABLE_SUFFIX})
             ${CURRENT_PACKAGES_DIR}/debug/bin/nodesize_dbg${EXECUTABLE_SUFFIX}
         )
     endif()
+else()
+    file(REMOVE_RECURSE
+        ${CURRENT_PACKAGES_DIR}/bin
+        ${CURRENT_PACKAGES_DIR}/debug/bin
+    )
+    file(REMOVE
+        ${CURRENT_PACKAGES_DIR}/bin/foonathan_memory_node_size_debugger${EXECUTABLE_SUFFIX}
+        ${CURRENT_PACKAGES_DIR}/debug/bin/foonathan_memory_node_size_debugger${EXECUTABLE_SUFFIX}
+    )
 endif()
+
 
 # Handle copyright
 configure_file(${SOURCE_PATH}/LICENSE ${CURRENT_PACKAGES_DIR}/share/${PORT}/copyright COPYONLY)
+
+# CMake integration test
+vcpkg_test_cmake(PACKAGE_NAME ${PORT})
