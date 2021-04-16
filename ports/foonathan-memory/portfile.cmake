@@ -30,7 +30,7 @@ else()
     set(foonathan_memory_BUILD_BINARIES ON)
 endif()
 
-if(NOT foonathan_memory_BUILD_BINARIES AND NOT EXISTS ${CURRENT_INSTALLED_DIR}/../x86-windows/tools/foonathan-memory)
+if(NOT foonathan_memory_BUILD_BINARIES AND NOT EXISTS ${CURRENT_INSTALLED_DIR}/../x64-windows/tools/foonathan-memory)
     message(FATAL_ERROR "Cross-targetting requires the x86-windows to be available. Please run vcpkg install foonathan-memory:x86-windows first.")
 endif()
 
@@ -51,7 +51,7 @@ else()
 vcpkg_replace_string(
     ${SOURCE_PATH}/src/CMakeLists.txt
     "foonathan_memory_node_size_debugger --code"
-    "${CURRENT_INSTALLED_DIR}/../x86-windows/tools/${PORT}/nodesize_dbg${EXECUTABLE_SUFFIX} --code"
+    "${CURRENT_INSTALLED_DIR}/../x64-windows/tools/${PORT}/nodesize_dbg${EXECUTABLE_SUFFIX} --code"
 )
 
 vcpkg_replace_string(
